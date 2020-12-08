@@ -463,14 +463,21 @@ bool writeJpeg(WRITE_ONE_BYTE output, const void* pixels_, unsigned short width,
             << AcLuminanceValues;
 
   // compute actual Huffman code tables (see Jon's code for precalculated tables)
-  BitCode huffmanLuminanceDC[256];
-  BitCode huffmanLuminanceAC[256];
+  BitCode* huffmanLuminanceDC = new(std::nothrow) BitCode[256];
+  BitCode* huffmanLuminanceAC = new(std::nothrow) BitCode[256];
+  if (huffmanLuminanceDC == nullptr || huffmanLuminanceAC == nullptr) {
+      return false;
+  }
   generateHuffmanTable(DcLuminanceCodesPerBitsize, DcLuminanceValues, huffmanLuminanceDC);
   generateHuffmanTable(AcLuminanceCodesPerBitsize, AcLuminanceValues, huffmanLuminanceAC);
 
   // chrominance is only relevant for color images
-  BitCode huffmanChrominanceDC[256];
-  BitCode huffmanChrominanceAC[256];
+  BitCode* huffmanChrominanceDC = new(std::nothrow) BitCode[256];
+  BitCode* huffmanChrominanceAC = new(std::nothrow) BitCode[256];
+  if (huffmanChrominanceDC == nullptr || huffmanChrominanceAC == nullptr) {
+      return false;
+  }
+
   if (isRGB)
   {
     // store luminance's DC+AC Huffman table definitions
@@ -523,7 +530,11 @@ bool writeJpeg(WRITE_ONE_BYTE output, const void* pixels_, unsigned short width,
 
   // ////////////////////////////////////////
   // precompute JPEG codewords for quantized DCT
-  BitCode  codewordsArray[2 * CodeWordLimit];          // note: quantized[i] is found at codewordsArray[quantized[i] + CodeWordLimit]
+  //BitCode  codewordsArray[2 * CodeWordLimit];          // note: quantized[i] is found at codewordsArray[quantized[i] + CodeWordLimit]
+  BitCode* codewordsArray = new(std::nothrow) BitCode[2 * CodeWordLimit];
+  if (codewordsArray == nullptr) {
+      return false;
+  }
   BitCode* codewords = &codewordsArray[CodeWordLimit]; // allow negative indices, so quantized[i] is at codewords[quantized[i]]
   uint8_t numBits = 1; // each codeword has at least one bit (value == 0 is undefined)
   int32_t mask    = 1; // mask is always 2^numBits - 1, initial value 2^1-1 = 2-1 = 1
