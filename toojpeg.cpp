@@ -89,7 +89,8 @@ const uint8_t AcChrominanceValues        [162] =                                
       0x88,0x89,0x8A,0x92,0x93,0x94,0x95,0x96,0x97,0x98,0x99,0x9A,0xA2,0xA3,0xA4,0xA5,0xA6,0xA7,0xA8,0xA9,0xAA,0xB2,0xB3,0xB4,
       0xB5,0xB6,0xB7,0xB8,0xB9,0xBA,0xC2,0xC3,0xC4,0xC5,0xC6,0xC7,0xC8,0xC9,0xCA,0xD2,0xD3,0xD4,0xD5,0xD6,0xD7,0xD8,0xD9,0xDA,
       0xE2,0xE3,0xE4,0xE5,0xE6,0xE7,0xE8,0xE9,0xEA,0xF2,0xF3,0xF4,0xF5,0xF6,0xF7,0xF8,0xF9,0xFA };
-const int16_t CodeWordLimit = 2048; // +/-2^11, maximum value after DCT
+// relocated to the header file.
+//const int16_t CodeWordLimit = 2048; // +/-2^11, maximum value after DCT
 
 // ////////////////////////////////////////
 // structs
@@ -530,7 +531,7 @@ bool writeJpeg(WRITE_ONE_BYTE output, const void* pixels_, unsigned short width,
   BitCode* codewords = &codewordsArray[CodeWordLimit]; // allow negative indices, so quantized[i] is at codewords[quantized[i]]
   uint8_t numBits = 1; // each codeword has at least one bit (value == 0 is undefined)
   int32_t mask    = 1; // mask is always 2^numBits - 1, initial value 2^1-1 = 2-1 = 1
-  for (int16_t value = 1; value < CodeWordLimit; value++)
+  for (int16_t value = 1; value < TOOJPEG_CODEWORDLIMIT; value++)
   {
     // numBits = position of highest set bit (ignoring the sign)
     // mask    = (2^numBits) - 1
