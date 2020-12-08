@@ -340,7 +340,7 @@ namespace TooJpeg
 {
 // the only exported function ...
 bool writeJpeg(WRITE_ONE_BYTE output, const void* pixels_, unsigned short width, unsigned short height,
-               bool isRGB, unsigned char quality_, bool downsample, const char* comment)
+               bool isRGB, unsigned char quality_, bool downsample, const char* comment, TooJPEG_MemoryBlock* mBlock)
 {
   // reject invalid pointers
   if (output == nullptr || pixels_ == nullptr)
@@ -348,6 +348,24 @@ bool writeJpeg(WRITE_ONE_BYTE output, const void* pixels_, unsigned short width,
   // check image format
   if (width == 0 || height == 0)
     return false;
+
+  // variables that were moved to the heap
+  // compute actual Huffman code tables (see Jon's code for precalculated tables)
+  BitCode* huffmanLuminanceDC = nullptr;
+  BitCode* huffmanLuminanceAC = nullptr;
+  // chrominance is only relevant for color images
+  BitCode* huffmanChrominanceDC = nullptr;
+  BitCode* huffmanChrominanceAC = nullptr;
+  // note: quantized[i] is found at codewordsArray[quantized[i] + CodeWordLimit]
+  BitCode* codewordsArray = nullptr;
+  // memory block validation
+  if (mBlock != nullptr) {
+      huffmanLuminanceDC = mBlock->block1;
+      huffmanLuminanceAC = mBlock->block2;
+      huffmanChrominanceDC = mBlock->block3;
+      huffmanChrominanceAC = mBlock->block4;
+      codewordsArray = mBlock->block5;
+  }
 
   // number of components
   const auto numComponents = isRGB ? 3 : 1;
@@ -455,20 +473,32 @@ bool writeJpeg(WRITE_ONE_BYTE output, const void* pixels_, unsigned short width,
             << AcLuminanceCodesPerBitsize
             << AcLuminanceValues;
 
-  // compute actual Huffman code tables (see Jon's code for precalculated tables)
-  BitCode* huffmanLuminanceDC = new(std::nothrow) BitCode[TOOJPEG_BLOCKSIZE];
-  BitCode* huffmanLuminanceAC = new(std::nothrow) BitCode[TOOJPEG_BLOCKSIZE];
-  if (huffmanLuminanceDC == nullptr || huffmanLuminanceAC == nullptr) {
-      return false;
+  if (huffmanLuminanceDC == nullptr) {
+      huffmanLuminanceDC = new(std::nothrow) BitCode[TOOJPEG_BLOCKSIZE];
+      if (huffmanLuminanceDC == nullptr) {
+          return false;
+      }
+  }
+  if (huffmanLuminanceAC == nullptr) {
+      huffmanLuminanceAC = new(std::nothrow) BitCode[TOOJPEG_BLOCKSIZE];
+          if (huffmanLuminanceAC == nullptr) {
+              return false;
+          }
   }
   generateHuffmanTable(DcLuminanceCodesPerBitsize, DcLuminanceValues, huffmanLuminanceDC);
   generateHuffmanTable(AcLuminanceCodesPerBitsize, AcLuminanceValues, huffmanLuminanceAC);
 
-  // chrominance is only relevant for color images
-  BitCode* huffmanChrominanceDC = new(std::nothrow) BitCode[TOOJPEG_BLOCKSIZE];
-  BitCode* huffmanChrominanceAC = new(std::nothrow) BitCode[TOOJPEG_BLOCKSIZE];
-  if (huffmanChrominanceDC == nullptr || huffmanChrominanceAC == nullptr) {
-      return false;
+  if (huffmanChrominanceDC == nullptr) {
+      huffmanChrominanceDC = new(std::nothrow) BitCode[TOOJPEG_BLOCKSIZE];
+      if (huffmanChrominanceDC == nullptr) {
+          return false;
+      }
+  }
+  if (huffmanChrominanceAC == nullptr) {
+      huffmanChrominanceAC = new(std::nothrow) BitCode[TOOJPEG_BLOCKSIZE];
+      if (huffmanChrominanceAC == nullptr) {
+          return false;
+      }
   }
 
   if (isRGB)
@@ -523,10 +553,12 @@ bool writeJpeg(WRITE_ONE_BYTE output, const void* pixels_, unsigned short width,
 
   // ////////////////////////////////////////
   // precompute JPEG codewords for quantized DCT
-  //BitCode  codewordsArray[2 * CodeWordLimit];          // note: quantized[i] is found at codewordsArray[quantized[i] + CodeWordLimit]
-  BitCode* codewordsArray = new(std::nothrow) BitCode[2 * CodeWordLimit];
+  //BitCode* codewordsArray[2 * CodeWordLimit];// note: quantized[i] is found at codewordsArray[quantized[i] + CodeWordLimit]
   if (codewordsArray == nullptr) {
-      return false;
+      codewordsArray = new(std::nothrow) BitCode[2 * CodeWordLimit];
+      if (codewordsArray == nullptr) {
+          return false;
+      }
   }
   BitCode* codewords = &codewordsArray[CodeWordLimit]; // allow negative indices, so quantized[i] is at codewords[quantized[i]]
   uint8_t numBits = 1; // each codeword has at least one bit (value == 0 is undefined)

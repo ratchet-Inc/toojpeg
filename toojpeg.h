@@ -22,6 +22,16 @@ constexpr unsigned short TOOJPEG_BLOCKSIZE = 256;
 constexpr unsigned short TOOJPEG_CODEWORDLIMIT = 2048;
 #define CodeWordLimit TOOJPEG_CODEWORDLIMIT
 
+struct BitCode;
+
+struct TooJPEG_MemoryBlock {
+    BitCode* block1;	// huffmanLuminanceDC	| should always be block size
+    BitCode* block2;	// huffmanLuminanceAC	| should always be block size
+    BitCode* block3;	// huffmanChrominanceDC | should always be block size
+    BitCode* block4;	// huffmanChrominanceAC | should always be block size
+    BitCode* block5;	// codewordsArray		| should always be CodeWordLimit
+};
+
 namespace TooJpeg
 {
     // represent a single Huffman code
@@ -47,8 +57,11 @@ namespace TooJpeg
   // quality      - between 1 (worst) and 100 (best)
   // downsample   - if true then YCbCr 4:2:0 format is used (smaller size, minor quality loss) instead of 4:4:4, not relevant for grayscale
   // comment      - optional JPEG comment (0/NULL if no comment), must not contain ASCII code 0xFF
-  bool writeJpeg(WRITE_ONE_BYTE output, const void* pixels, unsigned short width, unsigned short height,
-                 bool isRGB = true, unsigned char quality = 90, bool downsample = false, const char* comment = nullptr);
+  bool writeJpeg(
+      WRITE_ONE_BYTE output, const void* pixels, unsigned short width, unsigned short height,
+      bool isRGB = true, unsigned char quality = 90, bool downsample = false, const char* comment = nullptr,
+      TooJPEG_MemoryBlock* memBlock = nullptr;
+      );
 } // namespace TooJpeg
 
 // My main inspiration was Jon Olick's Minimalistic JPEG writer
