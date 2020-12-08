@@ -93,20 +93,34 @@ int main(void){
 }
 ```
 
+5. BackWards Compatibility
+
+```cpp
+// when you are ready you can just invoke the encoding the same as previously
+TooJpeg::writeJpeg(myOutput, mypixels, 1024, 768);
+// actually there are some optional parameters, too
+//bool ok = TooJpeg::writeJpeg(myOutput, pixels, width, height, isRGB, quality, downSample, comment, memoryBlock);
+```
+
 # Note:
 
 -My modication to the code were as minimal as possible to achieve instancing, for thread safety, while retaining the exact functionality of the original code.
 
 -Due to my modifications, a slight degradation in performance of about %6.0-%10.0 is observed.
+
 *Luckily, this is only for the first call of the funciton, due to modern CPU branch prediction, well at least on my AMD Ryzen CPU, all subsequent calls have a runtime that is equivalent to the unmodified code.
 
 # Modifications Details:
 
 -reduced the frame stack size of the encoding function for safety reasons, this was done my allocating
-some variables dynamically, the new stack size is about 15MB, this is still alot but less than the original 22MB.
+some variables dynamically, the new stack size is about 15KB, this is still alot but less than the original 22KB.
+
 -added a structure and an optional parameter to prevent new allocation of memory when performing new encodings
+
 -added a new class to handle encoding, which enables instancing.
+
 -added a new typedef for member functions of the controller class
+
 -modified the BitWritter struct by overloading the constructor to accept either a free function or
 a member function with a class object and output to the valid pointer.
 
