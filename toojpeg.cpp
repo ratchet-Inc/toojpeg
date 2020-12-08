@@ -94,15 +94,7 @@ const int16_t CodeWordLimit = 2048; // +/-2^11, maximum value after DCT
 // ////////////////////////////////////////
 // structs
 
-// represent a single Huffman code
-struct BitCode
-{
-  BitCode() = default; // undefined state, must be initialized at a later time
-  BitCode(uint16_t code_, uint8_t numBits_)
-  : code(code_), numBits(numBits_) {}
-  uint16_t code;       // JPEG's Huffman codes are limited to 16 bits
-  uint8_t  numBits;    // number of valid bits
-};
+// BitCode structure definition moved to header file.
 
 // wrapper for bit output operations
 struct BitWriter
@@ -463,8 +455,8 @@ bool writeJpeg(WRITE_ONE_BYTE output, const void* pixels_, unsigned short width,
             << AcLuminanceValues;
 
   // compute actual Huffman code tables (see Jon's code for precalculated tables)
-  BitCode* huffmanLuminanceDC = new(std::nothrow) BitCode[256];
-  BitCode* huffmanLuminanceAC = new(std::nothrow) BitCode[256];
+  BitCode* huffmanLuminanceDC = new(std::nothrow) BitCode[TOOJPEG_BLOCKSIZE];
+  BitCode* huffmanLuminanceAC = new(std::nothrow) BitCode[TOOJPEG_BLOCKSIZE];
   if (huffmanLuminanceDC == nullptr || huffmanLuminanceAC == nullptr) {
       return false;
   }
@@ -472,8 +464,8 @@ bool writeJpeg(WRITE_ONE_BYTE output, const void* pixels_, unsigned short width,
   generateHuffmanTable(AcLuminanceCodesPerBitsize, AcLuminanceValues, huffmanLuminanceAC);
 
   // chrominance is only relevant for color images
-  BitCode* huffmanChrominanceDC = new(std::nothrow) BitCode[256];
-  BitCode* huffmanChrominanceAC = new(std::nothrow) BitCode[256];
+  BitCode* huffmanChrominanceDC = new(std::nothrow) BitCode[TOOJPEG_BLOCKSIZE];
+  BitCode* huffmanChrominanceAC = new(std::nothrow) BitCode[TOOJPEG_BLOCKSIZE];
   if (huffmanChrominanceDC == nullptr || huffmanChrominanceAC == nullptr) {
       return false;
   }
