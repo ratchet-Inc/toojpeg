@@ -101,9 +101,12 @@ const uint8_t AcChrominanceValues        [162] =                                
 struct BitWriter
 {
   // user-supplied callback that writes/stores one byte
-  TooJpeg::WRITE_ONE_BYTE output;
+  TooJpeg::WRITE_ONE_BYTE _output;
+  TooJPEG_Controller* c = nullptr;
+  TooJpeg::out mout = nullptr;
   // initialize writer
-  explicit BitWriter(TooJpeg::WRITE_ONE_BYTE output_) : output(output_) {}
+  explicit BitWriter(TooJpeg::WRITE_ONE_BYTE output_) : _output(output_) {}
+  explicit BitWriter(TooJPEG_Controller* c_, TooJpeg::out output_) : mout(output_), c(c_) {}
 
   // store the most recently encoded bits that are not written yet
   struct BitBuffer
@@ -111,6 +114,15 @@ struct BitWriter
     int32_t data    = 0; // actually only at most 24 bits are used
     uint8_t numBits = 0; // number of valid bits (the right-most bits)
   } buffer;
+
+  inline void output(uint8_t b)
+  {
+      if (_output == nullptr) {
+          std::invoke(mout, c, b);
+          return;
+      }
+      _output(b);
+  }
 
   // write Huffman bits stored in BitCode, keep excess bits in BitBuffer
   BitWriter& operator<<(const BitCode& data)
@@ -339,11 +351,11 @@ void generateHuffmanTable(const uint8_t numCodes[16], const uint8_t* values, Bit
 namespace TooJpeg
 {
 // the only exported function ...
-bool writeJpeg(WRITE_ONE_BYTE output, const void* pixels_, unsigned short width, unsigned short height,
+bool writeJpeg(BitWriter &writer, const void* pixels_, unsigned short width, unsigned short height,
                bool isRGB, unsigned char quality_, bool downsample, const char* comment, TooJPEG_MemoryBlock* mBlock)
 {
   // reject invalid pointers
-  if (output == nullptr || pixels_ == nullptr)
+  if (/*output == nullptr || */pixels_ == nullptr)
     return false;
   // check image format
   if (width == 0 || height == 0)
@@ -378,7 +390,8 @@ bool writeJpeg(WRITE_ONE_BYTE output, const void* pixels_, unsigned short width,
     downsample = false;
 
   // wrapper for all output operations
-  BitWriter bitWriter(output);
+  BitWriter bitWriter = writer;
+  //BitWriter bitWriter(output);
 
   // ////////////////////////////////////////
   // JFIF headers
@@ -696,6 +709,98 @@ bool writeJpeg(WRITE_ONE_BYTE output, const void* pixels_, unsigned short width,
   // ///////////////////////////
   // EOI marker
   bitWriter << 0xFF << 0xD9; // this marker has no length, therefore I can't use addMarker()
+  if (mBlock == nullptr) {
+      delete[] huffmanLuminanceDC;
+      delete[] huffmanLuminanceAC;
+      delete[] huffmanChrominanceDC;
+      delete[] huffmanChrominanceAC;
+      delete[] codewordsArray;
+  }
   return true;
-} // writeJpeg()
+} // writeJpeg() modified
+bool writeJpeg(WRITE_ONE_BYTE output, const void* pixels_, unsigned short width, unsigned short height,
+    bool isRGB, unsigned char quality_, bool downsample, const char* comment, TooJPEG_MemoryBlock* block)
+{
+    BitWriter writer(output);
+    return writeJpeg(writer, pixels_, width, height, isRGB, quality_, downsample, comment, block);
+}
+
+bool writeJpeg(TooJPEG_Controller* obj, const void* pixels_, unsigned short width, unsigned short height,
+    bool isRGB, unsigned char quality_, bool downsample, const char* comment)
+{
+    if (obj->mFunc == nullptr) {
+        return false;
+    }
+    BitWriter writer(obj, obj->mFunc);
+    return writeJpeg(writer, pixels_, width, height, isRGB, quality_, downsample, comment, obj->GetMemoryBlock());
+}
 } // namespace TooJpeg
+
+TooJPEG_Controller::TooJPEG_Controller(void)
+{
+    this->memoryPtr = new(std::nothrow) TooJPEG_MemoryBlock;
+    if (this->memoryPtr != nullptr) {
+        this->memoryPtr->block1 = new(std::nothrow) BitCode[TOOJPEG_BLOCKSIZE];
+        this->memoryPtr->block2 = new(std::nothrow) BitCode[TOOJPEG_BLOCKSIZE];
+        this->memoryPtr->block3 = new(std::nothrow) BitCode[TOOJPEG_BLOCKSIZE];
+        this->memoryPtr->block4 = new(std::nothrow) BitCode[TOOJPEG_BLOCKSIZE];
+        this->memoryPtr->block5 = new(std::nothrow) BitCode[2 * TOOJPEG_CODEWORDLIMIT];
+    }
+    this->memoryStore = new(std::nothrow) std::vector<unsigned char>();
+    if (this->memoryStore != nullptr && this->memoryPtr != nullptr) {
+        this->isReady = true;
+    }
+    this->mFunc = &TooJPEG_Controller::CB_Func;
+}
+
+TooJPEG_Controller::~TooJPEG_Controller(void)
+{
+    if (this->memoryPtr != nullptr) {
+        if (this->memoryPtr->block1 != nullptr) {
+            delete[] this->memoryPtr->block1;
+        }
+        if (this->memoryPtr->block2 != nullptr) {
+            delete[] this->memoryPtr->block2;
+        }
+        if (this->memoryPtr->block3 != nullptr) {
+            delete[] this->memoryPtr->block3;
+        }
+        if (this->memoryPtr->block4 != nullptr) {
+            delete[] this->memoryPtr->block4;
+        }
+        if (this->memoryPtr->block5 != nullptr) {
+            delete[] this->memoryPtr->block5;
+        }
+        delete this->memoryPtr;
+    }
+}
+
+bool TooJPEG_Controller::EncodeImage(const void* memory, unsigned short width, unsigned short height, bool isRGB, unsigned char quality, bool downsample, const char* comment)
+{
+    if (this->OutputFunc != nullptr) {
+        return TooJpeg::writeJpeg(this->OutputFunc, memory, width, height, isRGB, quality, downsample, comment, this->memoryPtr);
+    }
+    return TooJpeg::writeJpeg(this, memory, width, height, isRGB, quality, downsample, comment);
+}
+
+unsigned char* TooJPEG_Controller::GetEncoded(unsigned int& length)
+{
+    length = this->memoryStore->size();
+    uint8_t* p = this->memoryStore->data();
+    return p;
+}
+
+bool TooJPEG_Controller::IsValid(void)
+{
+    return this->isReady;
+}
+
+TooJPEG_MemoryBlock* TooJPEG_Controller::GetMemoryBlock(void)
+{
+    return this->memoryPtr;
+}
+
+void TooJPEG_Controller::CB_Func(unsigned char b)
+{
+    this->memoryStore->push_back(b);
+}
