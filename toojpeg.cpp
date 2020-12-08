@@ -101,7 +101,7 @@ const uint8_t AcChrominanceValues        [162] =                                
 struct BitWriter
 {
   // user-supplied callback that writes/stores one byte
-  TooJpeg::WRITE_ONE_BYTE _output;
+  TooJpeg::WRITE_ONE_BYTE _output = nullptr;
   TooJPEG_Controller* c = nullptr;
   TooJpeg::out mout = nullptr;
   // initialize writer
@@ -777,9 +777,6 @@ TooJPEG_Controller::~TooJPEG_Controller(void)
 
 bool TooJPEG_Controller::EncodeImage(const void* memory, unsigned short width, unsigned short height, bool isRGB, unsigned char quality, bool downsample, const char* comment)
 {
-    if (this->OutputFunc != nullptr) {
-        return TooJpeg::writeJpeg(this->OutputFunc, memory, width, height, isRGB, quality, downsample, comment, this->memoryPtr);
-    }
     return TooJpeg::writeJpeg(this, memory, width, height, isRGB, quality, downsample, comment);
 }
 
@@ -803,4 +800,11 @@ TooJPEG_MemoryBlock* TooJPEG_Controller::GetMemoryBlock(void)
 void TooJPEG_Controller::CB_Func(unsigned char b)
 {
     this->memoryStore->push_back(b);
+}
+
+void TooJPEG_Controller::EmptyMemoryStore(void)
+{
+    if (this->memoryStore != nullptr) {
+        this->memoryStore->clear();
+    }
 }

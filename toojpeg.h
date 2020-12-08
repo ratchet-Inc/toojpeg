@@ -23,8 +23,15 @@ constexpr unsigned short TOOJPEG_BLOCKSIZE = 256;
 constexpr unsigned short TOOJPEG_CODEWORDLIMIT = 2048;
 #define CodeWordLimit TOOJPEG_CODEWORDLIMIT
 
-struct BitCode;
-class TooJPEG_Controller;
+// represent a single Huffman code
+struct BitCode
+{
+    BitCode() = default; // undefined state, must be initialized at a later time
+    BitCode(uint16_t code_, uint8_t numBits_)
+        : code(code_), numBits(numBits_) {}
+    uint16_t code;       // JPEG's Huffman codes are limited to 16 bits
+    uint8_t  numBits;    // number of valid bits
+};
 
 struct TooJPEG_MemoryBlock {
     BitCode* block1;	// huffmanLuminanceDC	| should always be block size
@@ -34,18 +41,10 @@ struct TooJPEG_MemoryBlock {
     BitCode* block5;	// codewordsArray		| should always be CodeWordLimit
 };
 
+class TooJPEG_Controller;
+
 namespace TooJpeg
 {
-    // represent a single Huffman code
-    struct BitCode
-    {
-        BitCode() = default; // undefined state, must be initialized at a later time
-        BitCode(uint16_t code_, uint8_t numBits_)
-            : code(code_), numBits(numBits_) {}
-        uint16_t code;       // JPEG's Huffman codes are limited to 16 bits
-        uint8_t  numBits;    // number of valid bits
-    };
-
   // write one byte (to disk, memory, ...)
   typedef void (*WRITE_ONE_BYTE)(unsigned char);
   typedef void (TooJPEG_Controller::* out)(unsigned char);
@@ -63,7 +62,7 @@ namespace TooJpeg
   bool writeJpeg(
       WRITE_ONE_BYTE output, const void* pixels, unsigned short width, unsigned short height,
       bool isRGB = true, unsigned char quality = 90, bool downsample = false, const char* comment = nullptr,
-      TooJPEG_MemoryBlock* memBlock = nullptr;
+      TooJPEG_MemoryBlock* memBlock = nullptr
       );
   // overload func
   bool writeJpeg(
@@ -81,6 +80,7 @@ public:
     virtual unsigned char* GetEncoded(unsigned int& length);
     virtual bool IsValid(void);
     virtual TooJPEG_MemoryBlock* GetMemoryBlock(void);
+    void EmptyMemoryStore(void);
     TooJpeg::out mFunc = nullptr;
 private:
     bool isReady = false;
