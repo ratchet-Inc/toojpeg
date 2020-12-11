@@ -75,7 +75,7 @@ class TooJPEG_Controller
 {
 public:
     TooJPEG_Controller(void);
-    ~TooJPEG_Controller(void);
+    virtual ~TooJPEG_Controller(void);
     virtual bool EncodeImage(const void* memory, unsigned short width, unsigned short height, bool isRGB = true, unsigned char quality = 90, bool downsample = false, const char* comment = nullptr);
     virtual unsigned char* GetEncoded(unsigned int& length);
     virtual bool IsValid(void);

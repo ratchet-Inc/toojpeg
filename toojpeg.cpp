@@ -102,11 +102,11 @@ struct BitWriter
 {
   // user-supplied callback that writes/stores one byte
   TooJpeg::WRITE_ONE_BYTE _output = nullptr;
-  TooJPEG_Controller* c = nullptr;
+  TooJPEG_Controller* obj = nullptr;
   TooJpeg::out mout = nullptr;
   // initialize writer
   explicit BitWriter(TooJpeg::WRITE_ONE_BYTE output_) : _output(output_) {}
-  explicit BitWriter(TooJPEG_Controller* c_, TooJpeg::out output_) : mout(output_), c(c_) {}
+  explicit BitWriter(TooJPEG_Controller* c_, TooJpeg::out output_) : obj(c_), mout(output_) {}
 
   // store the most recently encoded bits that are not written yet
   struct BitBuffer
@@ -118,7 +118,7 @@ struct BitWriter
   inline void output(uint8_t b)
   {
       if (_output == nullptr) {
-          std::invoke(mout, c, b);
+          std::invoke(mout, obj, b);
           return;
       }
       _output(b);
